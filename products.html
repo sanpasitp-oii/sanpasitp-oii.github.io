@@ -106,6 +106,47 @@
             </a>
         </div>
     </div>
+    <script
+  src="https://code.jquery.com/jquery-1.12.4.min.js"
+  integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+  crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        
+BK = {};
+BK.subTest = function () {
+    var temp = "";
+
+    return {     
+        validateDate: function (date) {
+            "use strict";
+            var dc = /^\d{4}-\d{2}-\d{2}$/;
+            return dc.test(date);
+        },
+        testAPI: function() {                       
+            var rawData = {
+                firstname: "John",
+                lastname: "Doe"
+            };
+
+            $.ajax({
+                url: "https://originqa.bk.com/bk-newsletter-save",
+                type: "POST",
+                data: rawData,
+                success: function (json) {
+                    console.log('Success: ' + json);
+                    
+                },
+                error: function (err) {
+                    console.log('Error !');
+                    var returnedData = JSON.parse(err.responseText);
+                    console.log(returnedData);
+                }
+            });
+        }
+
+    }
+}();
+    </script>
 </body>
 
 </html>
