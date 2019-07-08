@@ -4,7 +4,8 @@
 <head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" >
@@ -32,7 +33,7 @@
             width: 100%;
         }
         img {
-            width: 100%;
+            max-width: 100%;
 
         }
         .title {
@@ -40,12 +41,69 @@
             height: 2.5em;
             width: 100%;
         }
+        header.main-header {
+            height: 75px;
+            background: lightblue;
+            width: 100%;
+        }
+        header.main-header .content {
+            padding: 10px 15px;
+        }
+        header.main-header a.logo,
+        header.main-header a.mobileMenu {
+            display: block;
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ccc;
+          
+        }
+        header.main-header a.logo {
+            float: left;
+        }
+        header.main-header a.mobileMenu {
+            float: right;
+        }
+        
+        .crossed {
+            background: 
+                linear-gradient(to top left,
+                    rgba(0,0,0,0) 0%,
+                    rgba(0,0,0,0) calc(50% - 0.8px),
+                    rgba(0,0,0,1) 50%,
+                    rgba(0,0,0,0) calc(50% + 0.8px),
+                    rgba(0,0,0,0) 100%),
+                linear-gradient(to top right,
+                    rgba(0,0,0,0) 0%,
+                    rgba(0,0,0,0) calc(50% - 0.8px),
+                    rgba(0,0,0,1) 50%,
+                    rgba(0,0,0,0) calc(50% + 0.8px),
+                    rgba(0,0,0,0) 100%);
+        }
+        h1.pageTitle {
+            text-align: center;
+            padding: 40px 0px 100px;
+        }
     </style>
 
 </head>
 
 <body>
-    <h1 style="text-align: center">Medium content test</h1>
+    <!-- Header bar area -->
+    <header class="main-header">
+        <div class="content clearfix">
+            <a aria-label="Logo - Home" href="javascript:void(0);" class="logo crossed"></a>
+            <a aria-label="Toggle navigation" role="button" class="mobileMenu crossed" href="#">
+                    <i class="menu-icon"><span></span><span></span><span></span></i>
+                    <i class="icon icon_close-white"></i>
+                </a>
+        </div>
+    </header>
+    <!-- carousel area -->
+    <section>
+
+    </section>
+
+    <h1 class="pageTitle">Medium content test</h1>
 
     <section class="container-fluid">
         <div class="row content">
