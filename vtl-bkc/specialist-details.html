@@ -192,12 +192,6 @@
         
 
 
-<style type="text/css">
-</style>
-
-
-
-
 
 
 
@@ -205,35 +199,45 @@
 <style type="text/css">
 
     .slider-list.grey-bg {
-        background-image: url(assets/images/bangkrachao/specialist/bg-grey.png);
+        background-image: url(/assets/images/bangkrachao/specialist/bg-grey.png);
         background-repeat: no-repeat;
         background-size: cover;
         width: 100%;
         height: calc(100vw * 0.412);
     }
-    img.doctor {
+    img.doctor-desktop {
         position: absolute;
         right: 10%; /* (140px) */
         bottom: 0px;
         width: 33vw;
     }    
     
-    @media only screen and (max-width: 768px) {
+    @@media only screen and (max-width: 768px) {
         .slider-list.grey-bg {
-            height: 667px; /* 375x667 */
+            height: calc(100vw * 1.78); /* based at 667px (375x667) */
         }
-        img.doctor {
+        /*
+        img.doctor-desktop {
             position: absolute;
             right: -180px;
             bottom: 0px;
             width: 600px;
             filter: brightness(75%);
+        }*/
+
+        img.doctor-mobile {
+            max-width: 100%;
+            width: 79%;
+            position: absolute;
+            top: calc(100vw * 0.13);
+            right: 0;
         }
+        /*
         .page-specialist-detail .herobanner .slider-list .content-text {
             top: 55%;
             left: 15%;
             transform: translate(-15%, -55%);
-        }
+        } */
     }
 </style>
 
@@ -241,7 +245,8 @@
 <div class="boxhero">
     <section class="herobanner">
         <div class="slider-list grey-bg">
-            <img class="doctor" src="assets/images/bangkrachao/specialist/doctor-01.png" />
+            <img class="doctor-desktop hideonmobile" src="assets/images/bangkrachao/specialist/doctor-01.png" />
+            <img class="doctor-mobile hidedesktop" src="assets/images/bangkrachao/specialist/doctor-01-mobile.png" />
             <div class="content-text">
                 <span class="subhdhilight text-white d-block">Dr. Narinthorn Surasinthon</span>
                 <span class="contentdetailtx mb-4">Medical Director, VitalLife Scientific Wellness Clinic at RAKxa Bang Krachao<br>Specialist in Anti-aging and Regenerative Medicine</span>
