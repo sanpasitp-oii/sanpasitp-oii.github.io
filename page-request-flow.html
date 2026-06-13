@@ -1,1 +1,592 @@
-xxxx
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page Request Flow — middleware → AppSidebar</title>
+  <style>
+    :root {
+      --bg: #f8f9fc;
+      --surface: #ffffff;
+      --surface2: #f1f3f8;
+      --border: #dde1ef;
+      --text: #1e2030;
+      --muted: #64748b;
+      --accent: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 32px 24px 80px;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: var(--muted); font-size: 0.83rem; margin-bottom: 44px; }
+
+    .section { margin-bottom: 52px; }
+    .section-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--muted); margin-bottom: 16px; padding-left: 2px;
+    }
+
+    code {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 1px 6px; border-radius: 4px;
+      font-family: 'Cascadia Code', 'Fira Mono', monospace; font-size: 0.76rem;
+      color: #0891b2;
+    }
+
+    /* ── PIPELINE ─────────────────────────────── */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding-top: 16px;
+      padding-bottom: 8px;
+    }
+    .pipe-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 130px;
+      max-width: 150px;
+      flex: 1;
+    }
+    .pipe-node {
+      width: 100%;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      padding: 14px 10px 12px;
+      text-align: center;
+      background: var(--surface);
+      position: relative;
+    }
+    .pipe-icon { font-size: 1.6rem; display: block; margin-bottom: 6px; }
+    .pipe-label { font-size: 0.76rem; font-weight: 700; line-height: 1.3; }
+    .pipe-sub { font-size: 0.65rem; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+    .pipe-badge {
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 20px; white-space: nowrap;
+    }
+
+    .pipe-arrow {
+      display: flex; align-items: center; padding: 0 2px; color: #94a3b8;
+      font-size: 1.3rem; flex-shrink: 0; align-self: center; margin-top: 8px;
+    }
+
+    /* ── FLOW STEPS ───────────────────────────── */
+    .flow-step {
+      display: flex; align-items: flex-start; gap: 16px; margin-bottom: 4px;
+    }
+    .flow-line {
+      display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 32px;
+    }
+    .flow-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .flow-vline { width: 2px; background: var(--border); flex: 1; min-height: 20px; }
+    .flow-content { flex: 1; padding-bottom: 20px; }
+    .flow-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
+    }
+    .flow-tag {
+      font-weight: 600; padding: 2px 9px; border-radius: 5px; font-size: 0.72rem; white-space: nowrap;
+    }
+    .flow-arrow-label { color: var(--muted); font-size: 0.78rem; }
+    .flow-sym { color: #94a3b8; font-size: 0.9rem; }
+
+    .flow-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .flow-card-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+    .flow-card-body { font-size: 0.78rem; color: var(--muted); line-height: 1.65; }
+    .flow-card-body b { color: var(--text); }
+
+    .note {
+      display: inline-block; padding: 5px 12px; border-radius: 0 6px 6px 0;
+      border-left: 3px solid; font-size: 0.74rem; margin-top: 8px; line-height: 1.4;
+    }
+
+    /* ── COMPONENT TREE ──────────────────────── */
+    .tree { font-family: 'Cascadia Code', 'Fira Mono', monospace; font-size: 0.78rem; }
+    .tree-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 6px 12px; border-radius: 6px; margin-bottom: 3px;
+    }
+    .tree-indent { color: #94a3b8; white-space: pre; }
+    .tree-name { font-weight: 600; }
+    .tree-meta { color: var(--muted); font-size: 0.71rem; margin-left: 4px; font-family: 'Segoe UI', sans-serif; }
+
+    /* ── TWO COL ─────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px;
+    }
+    .card h3 { font-size: 0.83rem; font-weight: 700; margin-bottom: 12px; }
+    .card ul { list-style: none; padding: 0; }
+    .card ul li {
+      font-size: 0.77rem; color: var(--muted); padding: 5px 0;
+      border-bottom: 1px solid var(--border); display: flex; gap: 8px;
+      align-items: flex-start; line-height: 1.5;
+    }
+    .card ul li:last-child { border-bottom: none; }
+    .dot { color: var(--accent); flex-shrink: 0; }
+
+    /* ── TIMELINE (sidebar render) ───────────── */
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+      width: 2px; background: var(--border);
+    }
+    .tl-item {
+      position: relative; margin-bottom: 14px;
+    }
+    .tl-dot {
+      position: absolute; left: -17px; top: 3px;
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 2px solid var(--border);
+    }
+    .tl-label { font-size: 0.8rem; font-weight: 600; margin-bottom: 3px; }
+    .tl-body { font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+
+    /* tag colors */
+    .t-edge    { background:#f3e8ff; color:#7e22ce; }
+    .t-server  { background:#dbeafe; color:#1d4ed8; }
+    .t-client  { background:#fef3c7; color:#b45309; }
+    .t-supabase{ background:#dcfce7; color:#15803d; }
+    .t-query   { background:#ffe4e6; color:#be123c; }
+    .t-browser { background:#e0f2fe; color:#0369a1; }
+  </style>
+</head>
+<body>
+
+<h1>Page Request Flow</h1>
+<p class="subtitle">middleware.ts → layout.tsx → AppProviders → AppLayoutShell → AppSidebar</p>
+
+<!-- ════════════════════════════════════════
+     PIPELINE OVERVIEW
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Pipeline at a Glance</div>
+  <div class="pipeline">
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#a5b4fc;">
+        <span class="pipe-badge" style="background:#ede9fe;color:#5b21b6;">Edge / Node</span>
+        <span class="pipe-icon">🔐</span>
+        <div class="pipe-label">middleware.ts</div>
+        <div class="pipe-sub">Every request, before render</div>
+      </div>
+    </div>
+
+    <div class="pipe-arrow">›</div>
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#93c5fd;">
+        <span class="pipe-badge" style="background:#dbeafe;color:#1d4ed8;">Server Component</span>
+        <span class="pipe-icon">📐</span>
+        <div class="pipe-label">layout.tsx</div>
+        <div class="pipe-sub">Root layout, no 'use client'</div>
+      </div>
+    </div>
+
+    <div class="pipe-arrow">›</div>
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#fcd34d;">
+        <span class="pipe-badge" style="background:#fef3c7;color:#b45309;">Client Component</span>
+        <span class="pipe-icon">⚙️</span>
+        <div class="pipe-label">AppProviders</div>
+        <div class="pipe-sub">QueryClient + AuthProvider</div>
+      </div>
+    </div>
+
+    <div class="pipe-arrow">›</div>
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#fcd34d;">
+        <span class="pipe-badge" style="background:#fef3c7;color:#b45309;">Client Component</span>
+        <span class="pipe-icon">🏠</span>
+        <div class="pipe-label">AppLayoutShell</div>
+        <div class="pipe-sub">Sidebar or passthrough</div>
+      </div>
+    </div>
+
+    <div class="pipe-arrow">›</div>
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#fcd34d;">
+        <span class="pipe-badge" style="background:#fef3c7;color:#b45309;">Client Component</span>
+        <span class="pipe-icon">📌</span>
+        <div class="pipe-label">AppSidebar</div>
+        <div class="pipe-sub">Nav + OrgBrand + user</div>
+      </div>
+    </div>
+
+    <div class="pipe-arrow">›</div>
+
+    <div class="pipe-block">
+      <div class="pipe-node" style="border-color:#86efac;">
+        <span class="pipe-badge" style="background:#dcfce7;color:#15803d;">Page</span>
+        <span class="pipe-icon">📄</span>
+        <div class="pipe-label">page.tsx</div>
+        <div class="pipe-sub">children — SC or CC</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     STEP-BY-STEP
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Step-by-Step Walkthrough</div>
+
+  <!-- 1 middleware -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#ede9fe;color:#5b21b6;">1</div>
+      <div class="flow-vline"></div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-browser">Browser</span>
+        <span class="flow-sym">→</span>
+        <span class="flow-tag t-edge">middleware.ts</span>
+        <span class="flow-arrow-label">GET /dashboard</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">Session guard runs before anything else</div>
+        <div class="flow-card-body">
+          Runs at the <b>Edge</b> (or Node.js) runtime — before any React rendering occurs.<br><br>
+          Creates a <code>createServerClient</code> wired to request cookies. Calls <code>supabase.auth.getClaims()</code> — this validates the JWT and silently refreshes it if expired, writing updated cookies into the response.<br><br>
+          <b>Decision:</b><br>
+          • Path is in <code>PUBLIC_PATHS</code> (<code>/</code>, <code>/login</code>, <code>/signup</code>) or starts with <code>/api/</code> → allow through.<br>
+          • No session + protected path → <code>redirect(/login)</code>.<br>
+          • Has session + visiting <code>/login</code> or <code>/signup</code> → <code>redirect(/dashboard)</code>.<br>
+          • Has session + protected path → <code>NextResponse.next()</code> with refreshed cookies.
+        </div>
+        <div class="note" style="background:#f3e8ff;border-color:#7e22ce;color:#5b21b6;">
+          Cookies are forwarded to every subsequent layer via the response headers
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 layout -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#dbeafe;color:#1d4ed8;">2</div>
+      <div class="flow-vline"></div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-server">Server Component</span>
+        <span class="flow-arrow-label">app/layout.tsx renders on the server</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">Root layout — pure server, no hooks</div>
+        <div class="flow-card-body">
+          <code>layout.tsx</code> has <b>no <code>'use client'</code></b> directive — it is a React Server Component. It runs on the server for every navigation to a new route.<br><br>
+          Its only job is to provide the HTML shell and mount the two client boundary providers:<br><br>
+          <code>&lt;AppProviders&gt;</code> — establishes the React Query + Auth context tree.<br>
+          <code>&lt;AppLayoutShell&gt;</code> — decides sidebar vs. full-page.<br>
+          <code>&lt;Toaster /&gt;</code> — sonner toast container.<br><br>
+          <b>Why Server Component?</b> It can stream the initial HTML to the browser immediately, and it can pass Server Component children (<code>page.tsx</code>) down as pre-rendered RSC payloads — even though the layout shell around them is client-side.
+        </div>
+        <div class="note" style="background:#dbeafe;border-color:#1d4ed8;color:#1d4ed8;">
+          Server renders the shell HTML; client components hydrate on the browser
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 AppProviders -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#fef3c7;color:#b45309;">3</div>
+      <div class="flow-vline"></div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-client">Client Component</span>
+        <span class="flow-arrow-label">AppProviders.tsx hydrates in browser</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">Provider tree — QueryClient + AuthProvider</div>
+        <div class="flow-card-body">
+          <code>AppProviders</code> is the <b>client boundary</b> — everything inside it runs in the browser.<br><br>
+          <b>QueryClientProvider</b> — creates a TanStack React Query <code>QueryClient</code> (one per page load, stable via <code>useState</code>). Makes <code>useQuery</code> / <code>useMutation</code> available to all descendants.<br><br>
+          <b>AuthProvider (AuthContext)</b> — on mount:<br>
+          1. Calls <code>supabase.auth.getSession()</code> → reads the session cookie already in the browser (placed there by middleware or the callback route). Sets <code>user</code>, <code>session</code> state.<br>
+          2. Subscribes to <code>supabase.auth.onAuthStateChange()</code> for future events (token refresh, sign out).<br>
+          3. Once user is known, queries <code>tenant_members</code> for <code>{ tenant_id, role }</code> and stores as <code>tenantMember</code>.<br>
+          Sets <code>loading = false</code> when done.
+        </div>
+        <div class="note" style="background:#fef3c7;border-color:#b45309;color:#b45309;">
+          useAuth() is available to any component inside AppProviders
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 AppLayoutShell -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#fef3c7;color:#b45309;">4</div>
+      <div class="flow-vline"></div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-client">Client Component</span>
+        <span class="flow-arrow-label">AppLayoutShell.tsx — sidebar or passthrough</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">Route-aware layout switcher</div>
+        <div class="flow-card-body">
+          Uses <code>usePathname()</code> to read the current URL on the client.<br><br>
+          Imports <code>PUBLIC_PATHS</code> <b>directly from <code>middleware.ts</code></b> — single source of truth for which routes are public. No duplication.<br><br>
+          <b>If path is in <code>PUBLIC_PATHS</code></b> (<code>/login</code>, <code>/signup</code>, <code>/</code>):<br>
+          &nbsp;&nbsp;→ Returns <code>{children}</code> only — no sidebar, full-screen page.<br><br>
+          <b>Otherwise (authenticated pages):</b><br>
+          &nbsp;&nbsp;→ Returns <code>flex h-screen</code> container with:<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;• <code>&lt;AppSidebar /&gt;</code> — fixed left column (w-64)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;• <code>&lt;main&gt;</code> — scrollable right column with page content
+        </div>
+        <div class="note" style="background:#dcfce7;border-color:#15803d;color:#15803d;">
+          PUBLIC_PATHS imported from middleware.ts — one list rules both server guard and client layout
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 AppSidebar -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#fef3c7;color:#b45309;">5</div>
+      <div class="flow-vline"></div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-client">Client Component</span>
+        <span class="flow-arrow-label">AppSidebar.tsx renders</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">Sidebar — role-filtered nav + org brand</div>
+        <div class="flow-card-body">
+          Reads auth state from <code>useAuth()</code>: <code>tenantMember</code>, <code>tenantId</code>, <code>user</code>, <code>signOut</code>.<br><br>
+          <b>Nav filtering:</b> <code>navItems</code> is a static array of routes each with an allowed <code>roles[]</code> list. Filtered by <code>tenantMember.role</code> (defaults to <code>'partner'</code> if undefined). Only routes the user's role can access are rendered.<br><br>
+          <b>Active state:</b> <code>usePathname()</code> compared against each nav item's <code>path</code>. Matching item gets the accent background style.<br><br>
+          <b>OrgBrand sub-component:</b> Two chained React Query fetches:<br>
+          &nbsp;&nbsp;1. <code>['tenant', tenantId]</code> → <code>supabase.from('tenants').select('id, name, name_abbreviation, logo_url')</code><br>
+          &nbsp;&nbsp;2. <code>['org-logo-signed-url', logoPath]</code> → <code>getLogoSignedUrl()</code> (only if <code>logo_url</code> exists)<br>
+          Displays logo image or derived initials (e.g. "NP" from "NSP Pay") as fallback.<br><br>
+          <b>Sign out:</b> Calls <code>signOut()</code> from AuthContext, then <code>router.push('/login')</code>.
+        </div>
+        <div class="note" style="background:#ffe4e6;border-color:#be123c;color:#be123c;">
+          Nav items are filtered per role — a 'partner' sees fewer items than 'owner'
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 page -->
+  <div class="flow-step">
+    <div class="flow-line">
+      <div class="flow-num" style="background:#dcfce7;color:#15803d;">6</div>
+    </div>
+    <div class="flow-content">
+      <div class="flow-header">
+        <span class="flow-tag t-supabase">Page</span>
+        <span class="flow-arrow-label">page.tsx renders as children inside &lt;main&gt;</span>
+      </div>
+      <div class="flow-card">
+        <div class="flow-card-title">The actual page content</div>
+        <div class="flow-card-body">
+          Rendered as <code>children</code> passed down through the layout tree. Can be a <b>Server Component</b> (default in App Router — no <code>'use client'</code>) or a <b>Client Component</b>.<br><br>
+          Server Component pages can do direct Supabase calls via <code>lib/supabase/server.ts</code>, use <code>await cookies()</code>, or call Server Actions.<br><br>
+          Client Component pages can use <code>useAuth()</code>, <code>useQuery()</code>, and browser APIs.<br><br>
+          Rendered inside <code>&lt;main className="flex-1 overflow-y-auto"&gt;</code> — scrollable, full height, with a <code>container max-w-7xl py-8</code> wrapper.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════
+     COMPONENT TREE
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">React Component Tree (authenticated page)</div>
+  <div class="card">
+    <div class="tree">
+
+      <div class="tree-row" style="background:#f8faff;">
+        <span class="tree-indent"></span>
+        <span class="tree-name" style="color:#1d4ed8;">&lt;RootLayout&gt;</span>
+        <span class="tree-meta">Server Component — layout.tsx</span>
+      </div>
+
+      <div class="tree-row" style="background:#fffbeb;">
+        <span class="tree-indent">  </span>
+        <span class="tree-name" style="color:#b45309;">&lt;AppProviders&gt;</span>
+        <span class="tree-meta">'use client' — QueryClientProvider + AuthProvider</span>
+      </div>
+
+      <div class="tree-row" style="background:#fffbeb;">
+        <span class="tree-indent">    </span>
+        <span class="tree-name" style="color:#b45309;">&lt;QueryClientProvider&gt;</span>
+        <span class="tree-meta">TanStack React Query</span>
+      </div>
+
+      <div class="tree-row" style="background:#fffbeb;">
+        <span class="tree-indent">      </span>
+        <span class="tree-name" style="color:#b45309;">&lt;AuthProvider&gt;</span>
+        <span class="tree-meta">user, session, tenantMember, tenantId, signOut</span>
+      </div>
+
+      <div class="tree-row" style="background:#fffbeb;">
+        <span class="tree-indent">        </span>
+        <span class="tree-name" style="color:#b45309;">&lt;AppLayoutShell&gt;</span>
+        <span class="tree-meta">'use client' — reads usePathname()</span>
+      </div>
+
+      <div class="tree-row" style="background:#fff7ed;">
+        <span class="tree-indent">          </span>
+        <span class="tree-name" style="color:#c2410c;">&lt;AppSidebar&gt;</span>
+        <span class="tree-meta">'use client' — useAuth(), usePathname(), useQuery()</span>
+      </div>
+
+      <div class="tree-row" style="background:#fff7ed;">
+        <span class="tree-indent">            </span>
+        <span class="tree-name" style="color:#c2410c;">&lt;OrgBrand tenantId&gt;</span>
+        <span class="tree-meta">useQuery → tenants table → signed logo URL</span>
+      </div>
+
+      <div class="tree-row" style="background:#f0fdf4;">
+        <span class="tree-indent">          </span>
+        <span class="tree-name" style="color:#15803d;">&lt;main&gt;</span>
+        <span class="tree-meta">flex-1 scrollable area</span>
+      </div>
+
+      <div class="tree-row" style="background:#f0fdf4;">
+        <span class="tree-indent">            </span>
+        <span class="tree-name" style="color:#15803d;">{children}</span>
+        <span class="tree-meta">page.tsx — Server or Client Component</span>
+      </div>
+
+      <div class="tree-row" style="background:#f8faff;">
+        <span class="tree-indent">  </span>
+        <span class="tree-name" style="color:#1d4ed8;">&lt;Toaster /&gt;</span>
+        <span class="tree-meta">sonner toast portal — outside layout shell</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SIDEBAR RENDER DETAIL
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">AppSidebar Render Sequence</div>
+  <div class="two-col">
+
+    <div class="card">
+      <h3>On initial mount</h3>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#ede9fe;border-color:#7e22ce;"></div>
+          <div class="tl-label">1. Hooks read from AuthContext</div>
+          <div class="tl-body"><code>useAuth()</code> → <code>tenantMember</code>, <code>tenantId</code>, <code>user</code>, <code>signOut</code>. AuthContext may still be <code>loading=true</code> on first paint — sidebar renders with <code>userRole = 'partner'</code> fallback until resolved.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#fef3c7;border-color:#b45309;"></div>
+          <div class="tl-label">2. Nav items filtered by role</div>
+          <div class="tl-body">Static <code>navItems[]</code> filtered: <code>item.roles.includes(userRole)</code>. Result is the subset of links this user may see. Roles: <code>owner</code> &gt; <code>admin</code> &gt; <code>manager</code> &gt; <code>partner</code>.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#fef9c3;border-color:#ca8a04;"></div>
+          <div class="tl-label">3. OrgBrand fires React Query</div>
+          <div class="tl-body">Query <code>['tenant', tenantId]</code> — fetches <code>name</code>, <code>name_abbreviation</code>, <code>logo_url</code> from Supabase. Only enabled once <code>tenantId</code> is non-null.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#cffafe;border-color:#0e7490;"></div>
+          <div class="tl-label">4. Logo signed URL query (chained)</div>
+          <div class="tl-body">Query <code>['org-logo-signed-url', logoPath]</code> — runs only if <code>logo_url</code> exists. Calls <code>getLogoSignedUrl()</code> to get a short-lived presigned URL from Supabase Storage.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#dcfce7;border-color:#15803d;"></div>
+          <div class="tl-label">5. Renders final state</div>
+          <div class="tl-body">Shows logo image (or initials fallback), org name with Tooltip, filtered nav buttons, user email footer, and Sign out button.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>On route change (client navigation)</h3>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#ede9fe;border-color:#7e22ce;"></div>
+          <div class="tl-label">Middleware does NOT re-run</div>
+          <div class="tl-body">Client-side navigation (e.g. <code>router.push('/providers')</code>) does not trigger the middleware — middleware only runs on full HTTP requests. The sidebar itself handles route changes.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#fef3c7;border-color:#b45309;"></div>
+          <div class="tl-label">usePathname() re-evaluates</div>
+          <div class="tl-body"><code>usePathname()</code> in both <code>AppLayoutShell</code> and <code>AppSidebar</code> automatically updates. <code>AppLayoutShell</code> re-checks PUBLIC_PATHS. <code>AppSidebar</code> re-computes <code>isActive</code> for each nav button.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#dcfce7;border-color:#15803d;"></div>
+          <div class="tl-label">React Query cache reused</div>
+          <div class="tl-body">Tenant name + logo queries are already cached. OrgBrand re-renders instantly with cached data — no new network requests on every navigation.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot" style="background:#dbeafe;border-color:#1d4ed8;"></div>
+          <div class="tl-label">New page.tsx streams in</div>
+          <div class="tl-body">Next.js fetches only the new page's RSC payload — the layout shell (sidebar, providers) stays mounted. No full re-render of the sidebar.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     KEY DESIGN DECISIONS
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Key Design Decisions</div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Why AppLayoutShell is a Client Component</h3>
+      <ul>
+        <li><span class="dot">▸</span><span>Needs <code>usePathname()</code> — a React hook — to decide whether to show the sidebar. Hooks require <code>'use client'</code>.</span></li>
+        <li><span class="dot">▸</span><span>Imports <code>PUBLIC_PATHS</code> from <code>middleware.ts</code> — single source of truth so the server guard and client layout always agree on what's public.</span></li>
+        <li><span class="dot">▸</span><span>The Server Component root layout (<code>layout.tsx</code>) passes <code>children</code> through, so individual pages can still be Server Components even though the shell is client-side.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Why there is no server-side sidebar data fetch</h3>
+      <ul>
+        <li><span class="dot">▸</span><span>Tenant name and logo are fetched client-side via React Query. This keeps the RSC streaming fast — the shell HTML arrives before any DB call completes.</span></li>
+        <li><span class="dot">▸</span><span>React Query caches results across navigations — the sidebar doesn't re-fetch on every route change, only on cache expiry.</span></li>
+        <li><span class="dot">▸</span><span>The signed logo URL is a separate chained query so it can be independently refreshed when it expires, without refetching the tenant metadata.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
